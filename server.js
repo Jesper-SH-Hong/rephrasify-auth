@@ -51,8 +51,9 @@ class Server {
       res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 
       res.writeHead(200, { "Content-Type": "text/plain" });
-      var message = "It works! JESPER CUSTOM MESSAGE\n";
-      response = message;
+      let message = "It works! JESPER CUSTOM MESSAGE\n";
+      let version = "NodeJS " + process.versions.node + "\n";
+      let response = [message, version].join("\n");
       res.end(response);
 
       //   if (q.pathname == `${lab5Path}/post`) {
