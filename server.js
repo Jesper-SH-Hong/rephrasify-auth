@@ -39,37 +39,37 @@ class Server {
       let response = [message, version].join("\n");
       res.end(response);
 
-        if (q.pathname == `${lab5Path}/post`) {
-          console.log("Recieved POST request");
-          // handle preflight request for POST
-          if (req.headers["access-control-request-method"]) {
-            res.setHeader("Access-Control-Allow-Methods", "POST");
-            res.end();
-          } else {
-            let body = "";
-            req.on("data", (chunk) => {
-              body += chunk;
-            });
-            req.on("end", () => {
-              console.log(`server recieved post request body: ${body}`);
-              this.db_admin.query(body, (err, result) => {
-                if (err) {
-                  const errorMessage = err.message || "Internal Server Error";
-                  const errorResponse = {
-                    status: "error",
-                    message: errorMessage,
-                  };
-                  res.writeHead(500, { "Content-Type": "application/json" });
-                  res.write(JSON.stringify(errorResponse));
-                  res.end();
-                } else {
-                  res.writeHead(STATUS.OK);
-                  res.end(JSON.stringify({ status: "success", data: result }));
-                }
-              });
-            });
-          }
-        }
+        // if (q.pathname == `${lab5Path}/post`) {
+        //   console.log("Recieved POST request");
+        //   // handle preflight request for POST
+        //   if (req.headers["access-control-request-method"]) {
+        //     res.setHeader("Access-Control-Allow-Methods", "POST");
+        //     res.end();
+        //   } else {
+        //     let body = "";
+        //     req.on("data", (chunk) => {
+        //       body += chunk;
+        //     });
+        //     req.on("end", () => {
+        //       console.log(`server recieved post request body: ${body}`);
+        //       this.db_admin.query(body, (err, result) => {
+        //         if (err) {
+        //           const errorMessage = err.message || "Internal Server Error";
+        //           const errorResponse = {
+        //             status: "error",
+        //             message: errorMessage,
+        //           };
+        //           res.writeHead(500, { "Content-Type": "application/json" });
+        //           res.write(JSON.stringify(errorResponse));
+        //           res.end();
+        //         } else {
+        //           res.writeHead(STATUS.OK);
+        //           res.end(JSON.stringify({ status: "success", data: result }));
+        //         }
+        //       });
+        //     });
+        //   }
+        // }
     });
 
     // close db_admin connection when server is closed
