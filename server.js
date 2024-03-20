@@ -52,8 +52,7 @@ class Server {
 
       res.writeHead(200, { "Content-Type": "text/plain" });
       var message = "It works! JESPER CUSTOM MESSAGE\n";
-      version = "NodeJS " + process.versions.node + "\n";
-      response = [message, version].join("\n");
+      response = message;
       res.end(response);
 
       //   if (q.pathname == `${lab5Path}/post`) {
