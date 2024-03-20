@@ -51,7 +51,7 @@ class Server {
       res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 
       res.writeHead(200, { "Content-Type": "text/plain" });
-      var message = "It works!\n";
+      var message = "It works! JESPER CUSTOM MESSAGE\n";
       version = "NodeJS " + process.versions.node + "\n";
       response = [message, version].join("\n");
       res.end(response);
