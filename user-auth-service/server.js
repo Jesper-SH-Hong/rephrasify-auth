@@ -1,5 +1,6 @@
 const http = require("http");
 const url = require("url");
+
 const mysql = require("mysql");
 const db_admin = mysql.createConnection({
   host: "localhost",
@@ -27,7 +28,7 @@ class Server {
       res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 
       res.writeHead(200, { "Content-Type": "text/plain" });
-      let message = "THIS IS API-GATEWAY APP\n";
+      let message = "API Gateway serviceE\n";
       let version = "NodeJS " + process.versions.node + "\n";
       let response = [message, version].join("\n");
       res.end(response);
