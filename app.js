@@ -33,10 +33,14 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 const db_admin = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
+  // host: process.env.DB_HOST,
+  // user: process.env.DB_USER,
+  // password: process.env.DB_PASSWORD,
+  // database: process.env.DB_NAME
+  host: process.env.DB_LOCAL_HOST,
+  user: process.env.DB_LOCAL_USER,
+  password: process.env.DB_LOCAL_PASSWORD,
+  database: process.env.DB_LOCAL_NAME
 });
 
 class User {
@@ -140,7 +144,7 @@ app.post('/register', async (req, res) => {
 });
 
 app.get('/getSecurityQuestions', async (req, res) => {
-  db_admin.query(queries.gets, (err, result) => {
+  db_admin.query(queries.getSecurityQuestions, (err, result) => {
     if (err) {
       console.error(err);
       res.status(500).send('Internal server error');
@@ -175,7 +179,7 @@ app.get('/logout', (req, res) => {
 );
 
 app.put('/updateRole', async (req, res) => {
-  const values = [isAdmin, userId];
+  const values = [req.body.isAdmin, req.body.userId];
   db_admin.query(queries.updateRole, values, (err, result) => {
     if (err) {
       console.error(err);
