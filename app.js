@@ -9,6 +9,7 @@ const queries = require('./config/queries');
 const hashPassword = require('./utils/hashPassword');
 const ERROR = require('./enums/errorEnum');
 const MESSAGES = require('./lang/messages/en/user');
+const cors = require('cors');
 require("dotenv").config();
 
 const app = express();
@@ -16,6 +17,7 @@ const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors());
 
 app.post('/register', async (req, res) => {
   try {
