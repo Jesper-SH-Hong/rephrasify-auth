@@ -1,139 +1,25 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
-const mysql = require('mysql');
-const bcrypt = require('bcrypt');
-const VERB = require('./modules/verbEnum');
-const ENDPOINT = require('./modules/endpointEnum');
+const VERB = require('./enums/verbEnum');
+const ENDPOINT = require('./enums/endpointEnum');
+const db_admin = require('./config/db');
+const User = require('./models/user');
+const queries = require('./config/queries');
+const hashPassword = require('./utils/hashPassword');
+const ERROR = require('./enums/errorEnum');
+const MESSAGES = require('./lang/messages/en/user');
 require("dotenv").config();
-
-console.log(VERB.GET);
-console.log(ENDPOINT.REGISTER);
-
-const QUESTION_TABLE = 'security_question';
-const USER_TABLE = 'user';
-const VERB_TABLE = 'verb';
-const VERB_CONSUMPTION_TABLE = 'verb_consumption';
-const ENDPOINT_TABLE = 'api_endpoint';
-
-queries = {
-  getSecurityQuestions: `SELECT * FROM ${QUESTION_TABLE}`,
-  getUserSecurityQuestion: `SELECT q.question FROM ${USER_TABLE} u JOIN ${QUESTION_TABLE} q ON u.questionID = q.id WHERE email = ?`,
-  getUser: `SELECT * FROM ${USER_TABLE} WHERE email = ? AND password = ?`,
-  answerSecurityQuestion: `SELECT * FROM ${USER_TABLE} WHERE email = ? AND answer = ?`,
-  changePassword: `UPDATE ${USER_TABLE} SET password = ? WHERE email = ?`,
-  deleteUser: `DELETE FROM ${USER_TABLE} WHERE id = ?`,
-  updateRole: `UPDATE ${USER_TABLE} SET isAdmin = ? WHERE id = ?`,
-  getUsersInfo: `SELECT u.id, u.email, u.isAdmin, COUNT(vc.verbID) AS apiCount FROM ${USER_TABLE} u LEFT JOIN ${VERB_CONSUMPTION_TABLE} vc ON u.id = vc.userID GROUP BY u.id, u.email, u.isAdmin`,
-  getUserInfoByEmail: `SELECT u.id, u.email, u.isAdmin, COUNT(vc.verbID) AS apiCount FROM ${USER_TABLE} u LEFT JOIN ${VERB_CONSUMPTION_TABLE} vc ON u.id = vc.userID WHERE u.email = ? GROUP BY u.id, u.email, u.isAdmin`,
-  getUserInfoByUserId: `SELECT u.id, u.email, u.isAdmin, COUNT(vc.verbID) AS apiCount FROM ${USER_TABLE} u LEFT JOIN ${VERB_CONSUMPTION_TABLE} vc ON u.id = vc.userID WHERE u.id = ? GROUP BY u.id, u.email, u.isAdmin`,
-  createUser: `INSERT INTO ${USER_TABLE} (email, password, questionID, answer, isAdmin) VALUES (?, ?, ?, ?, ?)`,
-  getUserByEmail: `SELECT * FROM ${USER_TABLE} WHERE email = ?`,
-  getAllUsages: `SELECT v.verb, e.endpoint, COUNT(vc.verbID) AS usageCount FROM ${VERB_CONSUMPTION_TABLE} vc JOIN ${VERB_TABLE} v ON vc.verbID = v.id JOIN ${ENDPOINT_TABLE} e ON vc.endpointID = e.id GROUP BY e.endpoint, v.verb`,
-  addUsageWithUserId: `INSERT INTO ${VERB_CONSUMPTION_TABLE} (userID, verbID, endpointID) VALUES (?, ?, ?)`,
-  addUsageWithoutUserId: `INSERT INTO ${VERB_CONSUMPTION_TABLE} (verbID, endpointID) VALUES (?, ?)`,
-};
-
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Body parser middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-const db_admin = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
-});
-
-class User {
-  constructor(email, password, questionid, answer) {
-    this.email = email;
-    this.password = password;
-    this.questionId = questionid;
-    this.answer = answer;
-  }
-
-  register() {
-    const values = [this.email, this.password, this.questionId, this.answer, 0];
-    return new Promise((resolve, reject) => {
-      db_admin.query(queries.createUser, values, (err, result) => {
-        if (err) reject(err);
-        db_admin.query(queries.getUserInfoByEmail, [this.email], (err, result) => {
-          if (err) reject(err);
-          resolve(result[0]);
-        });
-      });
-    });
-  }
-
-  static getUserByEmail(email) {
-    return new Promise((resolve, reject) => {
-      db_admin.query(queries.getUserByEmail, [email], (err, result) => {
-        if (err) reject(err);
-        resolve(result[0]);
-      }
-      );
-    });
-  }
-
-  static authenticate(email, password) {
-    return new Promise((resolve, reject) => {
-      User.getUserByEmail(email).then((user) => {
-        bcrypt.compare(password, user.password, (err, res) => {
-          if (err) reject(err);
-          if (res) {
-            db_admin.query(queries.getUserInfoByEmail, [email], (err, result) => {
-              if (err) reject(err);
-              resolve(result[0]);
-            });
-          } else {
-            resolve(null);
-          }
-        });
-      }).catch((err) => {
-        reject(err);
-      });
-    });
-  };
-
-  static validateSecurityQuestion(email, answer) {
-    return new Promise((resolve, reject) => {
-      User.getUserByEmail(email).then((user) => {
-        bcrypt.compare(answer, user.answer, (err, res) => {
-          if (err) reject(err);
-          if (res) {
-            db_admin.query(queries.getUserInfoByEmail, [email], (err, result) => {
-              if (err) reject(err);
-              resolve(result[0]);
-            });
-          } else {
-            resolve(null);
-          }
-        });
-      }).catch((err) => {
-        reject(err);
-      });
-    });
-  }
-
-  static checkUserRole(id) {
-    return new Promise((resolve, reject) => {
-      db_admin.query(queries.getUserInfoByUserId, [id], (err, result) => {
-        if (err) reject(err);
-        console.log(result);
-        resolve(result[0].isAdmin)
-      });
-    });
-  }
-}
-
 app.post('/register', async (req, res) => {
   try {
-    addUsage(VERB.POST, ENDPOINT.REGISTER);
+    User.addUsage(VERB.POST, ENDPOINT.REGISTER);
   } catch (err) {
     console.error(err);
   }
@@ -141,10 +27,10 @@ app.post('/register', async (req, res) => {
   db_admin.query(queries.getUserByEmail, [req.body.email], async (err, result) => {
     if (err) {
       console.error(err);
-      res.status(500).send('Internal server error');
+      res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
     }
     if (result.length > 0) {
-      res.status(409).send('User already exists');
+      res.status(ERROR.CONFLICT).send(MESSAGES.USER_EXISTS);
     } else {
       const { email, password, questionId, answer } = req.body;
       const hashedPassword = await hashPassword(password);
@@ -153,13 +39,12 @@ app.post('/register', async (req, res) => {
       user.register()
         .then(result => {
           const token = jwt.sign({ userId: result.id }, process.env.SECRET_KEY, { expiresIn: '1h' });
-          console.log(token);
           res.cookie('token', token, { httpOnly: true });
-          res.status(200).json(result);
+          res.status(ERROR.SUCCESS).json(result);
         })
         .catch((err) => {
           console.error(err);
-          res.status(500).send('Internal server error');
+          res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
         });
     }
   });
@@ -167,7 +52,7 @@ app.post('/register', async (req, res) => {
 
 app.get('/getSecurityQuestions', async (req, res) => {
   try {
-    addUsage(VERB.GET, ENDPOINT.GET_SECURITY_QUESTIONS);
+    User.addUsage(VERB.GET, ENDPOINT.GET_SECURITY_QUESTIONS);
   } catch (err) {
     console.error(err);
   }
@@ -175,16 +60,16 @@ app.get('/getSecurityQuestions', async (req, res) => {
   db_admin.query(queries.getSecurityQuestions, (err, result) => {
     if (err) {
       console.error(err);
-      res.status(500).send('Internal server error');
+      res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
     }
     const response = {questions: JSON.parse(JSON.stringify(result))};
-    res.status(200).send(response);
+    res.status(ERROR.SUCCESS).send(response);
   });
 });
 
 app.post('/login', async (req, res) => {
   try {
-    addUsage(VERB.POST, ENDPOINT.LOGIN);
+    User.addUsage(VERB.POST, ENDPOINT.LOGIN);
   } catch (err) {
     console.error(err);
   }
@@ -194,115 +79,114 @@ app.post('/login', async (req, res) => {
     .then((user) => {
       if (user) {
         const token = jwt.sign({ userId: user.id }, process.env.SECRET_KEY, { expiresIn: '1h' });
-        console.log(token);
         res.cookie('token', token, { httpOnly: true });
-        res.status(200).json(user);
+        res.status(ERROR.SUCCESS).json(user);
       } else {
-        res.status(401).json({ errorMsg: 'Invalid credentials' });
+        res.status(ERROR.UNAUTHORIZED).send(MESSAGES.INVALID_CREDENTIALS);
       }
     })
     .catch((err) => {
       console.error(err);
-      res.status(500).send('Internal server error');
+      res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
     });
 });
 
 app.get('/logout', (req, res) => {
   res.clearCookie('token');
-  res.status(200).send('Logged out successfully');
+  res.status(ERROR.SUCCESS).send(MESSAGES.LOGOUT);
 }
 );
 
 app.put('/updateRole', async (req, res) => {
   try {
-    addUsage(VERB.PUT, ENDPOINT.UPDATE_ROLE, req.body.adminId);
+    User.addUsage(VERB.PUT, ENDPOINT.UPDATE_ROLE, req.body.adminId);
   } catch (err) {
     console.error(err);
   }
 
   const admin = await User.checkUserRole(req.body.adminId);
   if (!admin) {
-    res.status(403).send('Must be an admin to access this endpoint');
+    res.status(ERROR.FORBIDDEN).send(MESSAGES.ADMIN_ONLY);
   } else {
     const values = [req.body.isAdmin, req.body.userId];
     db_admin.query(queries.updateRole, values, (err, result) => {
       if (err) {
         console.error(err);
-        res.status(500).send('Internal server error');
+        res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
       }
-      res.status(200).json({ message: 'Role updated successfully' });
+      res.status(ERROR.SUCCESS).send(MESSAGES.ROLE_UPDATED);
     });
   }
 });
 
 app.delete('/deleteUser', async (req, res) => {
   try {
-    addUsage(VERB.DELETE, ENDPOINT.DELETE_USER, req.body.adminId);
+    User.addUsage(VERB.DELETE, ENDPOINT.DELETE_USER, req.body.adminId);
   } catch (err) {
     console.error(err);
   }
 
   const admin = await User.checkUserRole(req.body.adminId);
   if (!admin) {
-    res.status(403).send('Must be an admin to access this endpoint');
+    res.status(ERROR.FORBIDDEN).send(MESSAGES.ADMIN_ONLY);
   } else {
     db_admin.query(queries.deleteUser, req.body.userId, (err, result) => {
       if (err) {
         console.error(err);
-        res.status(500).send('Internal server error');
+        res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
       }
-      res.status(200).json({ message: 'User deleted successfully' });
+      res.status(ERROR.SUCCESS).send(MESSAGES.USER_DELETED);
     });
   }
 });
 
 app.get('/getAllUsers', async (req, res) => {
   try {
-    addUsage(VERB.GET, ENDPOINT.GET_ALL_USERS, req.query.adminId);
+    User.addUsage(VERB.GET, ENDPOINT.GET_ALL_USERS, req.query.adminId);
   } catch (err) {
     console.error(err);
   }
 
   const admin = await User.checkUserRole(req.query.adminId);
   if (!admin) {
-    res.status(403).send('Must be an admin to access this endpoint');
+    res.status(ERROR.FORBIDDEN).send(MESSAGES.ADMIN_ONLY);
   } else {
     db_admin.query(queries.getUsersInfo, (err, result) => {
       if (err) {
         console.error(err);
-        res.status(500).send('Internal server error');
+        res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
       }
       const response = {users: JSON.parse(JSON.stringify(result))};
-      res.status(200).send(response);
+      res.status(ERROR.SUCCESS).send(response);
     });
   }
 });
 
 app.get('/getAllUsages', async (req, res) => {
   try {
-    addUsage(VERB.GET, ENDPOINT.GET_ALL_USERS, req.query.adminId);
+    User.addUsage(VERB.GET, ENDPOINT.GET_ALL_USERS, req.query.adminId);
   } catch (err) {
     console.error(err);
   }
 
   const admin = await User.checkUserRole(req.query.adminId);
   if (!admin) {
-    res.status(403).send('Must be an admin to access this endpoint');
+    res.status(ERROR.FORBIDDEN).send(MESSAGES.ADMIN_ONLY);
   } else {
     db_admin.query(queries.getAllUsages, (err, result) => {
       if (err) {
         console.error(err);
-        res.status(500).send('Internal server error');
+        res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
       }
       const response = {data: JSON.parse(JSON.stringify(result))};
-      res.status(200).send(response);
+      res.status(ERROR.SUCCESS).send(response);
     });
   }
 });
 
 app.get('/getUserSecurityQuestion', async (req, res) => {
   try {
-    addUsage(VERB.GET, ENDPOINT.GET_USER_SECURITY_QUESTIONS);
+    User.addUsage(VERB.GET, ENDPOINT.GET_USER_SECURITY_QUESTIONS);
   } catch (err) {
     console.error(err);
   }
@@ -310,15 +194,19 @@ app.get('/getUserSecurityQuestion', async (req, res) => {
   db_admin.query(queries.getUserSecurityQuestion, req.query.email, (err, result) => {
     if (err) {
       console.error(err);
-      res.status(500).send('Internal server error');
+      res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
     }
-    res.status(200).json(result[0]);
+    if (result.length > 0) {
+      res.status(ERROR.SUCCESS).json(result[0]);
+    } else {
+      res.status(ERROR.NOT_FOUND).send(MESSAGES.USER_NOT_FOUND);
+    }
   });
 });
 
 app.post('/answerSecurityQuestion', async (req, res) => {
   try {
-    addUsage(VERB.POST, ENDPOINT.ANSWER_SECURITY_QUESTION);
+    User.addUsage(VERB.POST, ENDPOINT.ANSWER_SECURITY_QUESTION);
   } catch (err) {
     console.error(err);
   }
@@ -326,20 +214,20 @@ app.post('/answerSecurityQuestion', async (req, res) => {
   User.validateSecurityQuestion(req.body.email, req.body.answer)
     .then((user) => {
       if (user) {
-        res.status(200).json({ isValid: true });
+        res.status(ERROR.SUCCESS).json({ isValid: true });
       } else {
-        res.status(200).json({ isValid: false });
+        res.status(ERROR.SUCCESS).json({ isValid: false });
       }
     })
     .catch((err) => {
       console.error(err);
-      res.status(500).send('Internal server error');
+      res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
     });
 });
 
 app.put('/changePassword', async (req, res) => {
   try {
-    addUsage(VERB.PUT, ENDPOINT.CHANGE_PASSWORD);
+    User.addUsage(VERB.PUT, ENDPOINT.CHANGE_PASSWORD);
   } catch (err) {
     console.error(err);
   }
@@ -349,38 +237,17 @@ app.put('/changePassword', async (req, res) => {
   db_admin.query(queries.changePassword, values, (err, result) => {
     if (err) {
       console.error(err);
-      res.status(500).send('Internal server error');
+      res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
     }
     db_admin.query(queries.getUserInfoByEmail, [req.body.email], (err, result) => {
       if (err) {
         console.error(err);
-        res.status(500).send('Internal server error');
+        res.status(ERROR.INTERNAL_SERVER_ERROR).send(MESSAGES.INTERNAL_SERVER_ERROR);
       }
-      res.status(200).json(result[0]);
+      res.status(ERROR.SUCCESS).json(result[0]);
     });
   });
 });
-
-async function hashPassword(password) {
-  const saltRounds = 10;
-  return await bcrypt.hash(password, saltRounds);
-}
-
-function addUsage(verbId, endpointId, userId=null) {
-  return new Promise((resolve, reject) => {
-    if (userId) {
-      db_admin.query(queries.addUsageWithUserId, [userId, verbId, endpointId], (err, result) => {
-        if (err) reject(err);
-        resolve();
-      });
-    } else {
-      db_admin.query(queries.addUsageWithoutUserId, [verbId, endpointId], (err, result) => {
-        if (err) reject(err);
-        resolve();
-      });
-    }
-  });
-}
 
 // Start server
 app.listen(port, () => {
