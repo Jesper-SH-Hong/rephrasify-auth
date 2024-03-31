@@ -144,7 +144,7 @@ app.post('/register', async (req, res) => {
       res.status(500).send('Internal server error');
     }
     if (result.length > 0) {
-      res.status(400).json({ errorMsg: 'User already exists' });
+      res.status(409).send('User already exists');
     } else {
       const { email, password, questionId, answer } = req.body;
       const hashedPassword = await hashPassword(password);
@@ -222,7 +222,7 @@ app.put('/updateRole', async (req, res) => {
 
   const admin = await User.checkUserRole(req.body.adminId);
   if (!admin) {
-    res.status(409).send('Must be an admin to access this endpoint');
+    res.status(403).send('Must be an admin to access this endpoint');
   } else {
     const values = [req.body.isAdmin, req.body.userId];
     db_admin.query(queries.updateRole, values, (err, result) => {
@@ -244,7 +244,7 @@ app.delete('/deleteUser', async (req, res) => {
 
   const admin = await User.checkUserRole(req.body.adminId);
   if (!admin) {
-    res.status(409).send('Must be an admin to access this endpoint');
+    res.status(403).send('Must be an admin to access this endpoint');
   } else {
     db_admin.query(queries.deleteUser, req.body.userId, (err, result) => {
       if (err) {
@@ -265,7 +265,7 @@ app.get('/getAllUsers', async (req, res) => {
 
   const admin = await User.checkUserRole(req.query.adminId);
   if (!admin) {
-    res.status(409).send('Must be an admin to access this endpoint');
+    res.status(403).send('Must be an admin to access this endpoint');
   } else {
     db_admin.query(queries.getUsersInfo, (err, result) => {
       if (err) {
@@ -287,7 +287,7 @@ app.get('/getAllUsages', async (req, res) => {
 
   const admin = await User.checkUserRole(req.query.adminId);
   if (!admin) {
-    res.status(409).send('Must be an admin to access this endpoint');
+    res.status(403).send('Must be an admin to access this endpoint');
   } else {
     db_admin.query(queries.getAllUsages, (err, result) => {
       if (err) {
