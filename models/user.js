@@ -37,17 +37,21 @@ class User {
     static authenticate(email, password) {
         return new Promise((resolve, reject) => {
             User.getUserByEmail(email).then((user) => {
-                bcrypt.compare(password, user.password, (err, res) => {
-                    if (err) reject(err);
-                    if (res) {
-                        db_admin.query(queries.getUserInfoByEmail, [email], (err, result) => {
-                            if (err) reject(err);
-                            resolve(result[0]);
-                        });
-                    } else {
-                        resolve(null);
-                    }
-                });
+                if (user) {
+                    bcrypt.compare(password, user.password, (err, res) => {
+                        if (err) reject(err);
+                        if (res) {
+                            db_admin.query(queries.getUserInfoByEmail, [email], (err, result) => {
+                                if (err) reject(err);
+                                resolve(result[0]);
+                            });
+                        } else {
+                            resolve(null);
+                        }
+                    });
+                } else {
+                    resolve(null);
+                }
             }).catch((err) => {
                 reject(err);
             });

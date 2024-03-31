@@ -41,7 +41,7 @@ app.post('/register', async (req, res) => {
       user.register()
         .then(result => {
           const token = jwt.sign({ userId: result.id }, process.env.SECRET_KEY, { expiresIn: '1h' });
-          res.cookie('token', token, { httpOnly: true });
+          res.cookie('token', token);
           res.status(ERROR.SUCCESS).json(result);
         })
         .catch((err) => {
@@ -81,7 +81,7 @@ app.post('/login', async (req, res) => {
     .then((user) => {
       if (user) {
         const token = jwt.sign({ userId: user.id }, process.env.SECRET_KEY, { expiresIn: '1h' });
-        res.cookie('token', token, { httpOnly: true });
+        res.cookie('token', token);
         res.status(ERROR.SUCCESS).json(user);
       } else {
         res.status(ERROR.UNAUTHORIZED).send(MESSAGES.INVALID_CREDENTIALS);
