@@ -3,7 +3,12 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
 const bcrypt = require('bcrypt');
+const VERB = require('./modules/verbEnum');
+const ENDPOINT = require('./modules/endpointEnum');
 require("dotenv").config();
+
+console.log(VERB.GET);
+console.log(ENDPOINT.REGISTER);
 
 const QUESTION_TABLE = 'security_question';
 const USER_TABLE = 'user';
@@ -33,10 +38,14 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 const db_admin = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
+  // host: process.env.DB_HOST,
+  // user: process.env.DB_USER,
+  // password: process.env.DB_PASSWORD,
+  // database: process.env.DB_NAME
+  host: process.env.DB_LOCAL_HOST,
+  user: process.env.DB_LOCAL_USER,
+  password: process.env.DB_LOCAL_PASSWORD,
+  database: process.env.DB_LOCAL_NAME
 });
 
 class User {
@@ -109,6 +118,16 @@ class User {
       });
     });
   }
+
+  static checkUserRole(id) {
+    return new Promise((resolve, reject) => {
+      db_admin.query(queries.getUserInfoByUserId, [id], (err, result) => {
+        if (err) reject(err);
+        console.log(result);
+        resolve(result[0].isAdmin)
+      });
+    });
+  }
 }
 
 app.post('/register', async (req, res) => {
@@ -145,7 +164,8 @@ app.get('/getSecurityQuestions', async (req, res) => {
       console.error(err);
       res.status(500).send('Internal server error');
     }
-    res.status(200).json(result);
+    const response = {questions: JSON.parse(JSON.stringify(result))};
+    res.status(200).send(response);
   });
 });
 
@@ -175,34 +195,50 @@ app.get('/logout', (req, res) => {
 );
 
 app.put('/updateRole', async (req, res) => {
-  const values = [req.body.isAdmin, req.body.userId];
-  db_admin.query(queries.updateRole, values, (err, result) => {
-    if (err) {
-      console.error(err);
-      res.status(500).send('Internal server error');
-    }
-    res.status(200).json({ message: 'Role updated successfully' });
-  });
+  const admin = await User.checkUserRole(req.body.adminId);
+  if (!admin) {
+    res.status(409).send('Must be an admin to access this endpoint');
+  } else {
+    const values = [req.body.isAdmin, req.body.userId];
+    db_admin.query(queries.updateRole, values, (err, result) => {
+      if (err) {
+        console.error(err);
+        res.status(500).send('Internal server error');
+      }
+      res.status(200).json({ message: 'Role updated successfully' });
+    });
+  }
 });
 
 app.delete('/deleteUser', async (req, res) => {
-  db_admin.query(queries.deleteUser, req.body.userId, (err, result) => {
-    if (err) {
-      console.error(err);
-      res.status(500).send('Internal server error');
-    }
-    res.status(200).json({ message: 'User deleted successfully' });
-  });
+  const admin = await User.checkUserRole(req.body.adminId);
+  if (!admin) {
+    res.status(409).send('Must be an admin to access this endpoint');
+  } else {
+    db_admin.query(queries.deleteUser, req.body.userId, (err, result) => {
+      if (err) {
+        console.error(err);
+        res.status(500).send('Internal server error');
+      }
+      res.status(200).json({ message: 'User deleted successfully' });
+    });
+  }
 });
 
 app.get('/getAllUsers', async (req, res) => {
-  db_admin.query(queries.getUsersInfo, (err, result) => {
-    if (err) {
-      console.error(err);
-      res.status(500).send('Internal server error');
-    }
-    res.status(200).json(result);
-  });
+  const admin = await User.checkUserRole(req.query.adminId);
+  if (!admin) {
+    res.status(409).send('Must be an admin to access this endpoint');
+  } else {
+    db_admin.query(queries.getUsersInfo, (err, result) => {
+      if (err) {
+        console.error(err);
+        res.status(500).send('Internal server error');
+      }
+      const response = {users: JSON.parse(JSON.stringify(result))};
+      res.status(200).send(response);
+    });
+  }
 });
 
 app.get('/getUserSecurityQuestion', async (req, res) => {

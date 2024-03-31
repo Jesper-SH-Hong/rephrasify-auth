@@ -1,0 +1,14 @@
+const ENDPOINT = Object.freeze({
+    REGISTER: 1,
+    GET_SECURITY_QUESTIONS: 2,
+    LOGIN: 3,
+    LOGOUT: 4,
+    UPDATE_ROLE: 5,
+    DELETE_USER: 6,
+    GET_ALL_USERS: 7,
+    GET_USER_SECURITY_QUESTIONS: 8,
+    ANSWER_SECURITY_QUESTION: 9,
+    CHANGE_PASSWORD: 10,
+});
+
+module.exports = ENDPOINT;
