@@ -14,6 +14,8 @@ const QUESTION_TABLE = 'security_question';
 const USER_TABLE = 'user';
 const VERB_TABLE = 'verb';
 const VERB_CONSUMPTION_TABLE = 'verb_consumption';
+const ENDPOINT_TABLE = 'api_endpoint';
+
 queries = {
   getSecurityQuestions: `SELECT * FROM ${QUESTION_TABLE}`,
   getUserSecurityQuestion: `SELECT q.question FROM ${USER_TABLE} u JOIN ${QUESTION_TABLE} q ON u.questionID = q.id WHERE email = ?`,
@@ -27,6 +29,9 @@ queries = {
   getUserInfoByUserId: `SELECT u.id, u.email, u.isAdmin, COUNT(vc.verbID) AS apiCount FROM ${USER_TABLE} u LEFT JOIN ${VERB_CONSUMPTION_TABLE} vc ON u.id = vc.userID WHERE u.id = ? GROUP BY u.id, u.email, u.isAdmin`,
   createUser: `INSERT INTO ${USER_TABLE} (email, password, questionID, answer, isAdmin) VALUES (?, ?, ?, ?, ?)`,
   getUserByEmail: `SELECT * FROM ${USER_TABLE} WHERE email = ?`,
+  getAllUsages: `SELECT v.verb, e.endpoint, COUNT(vc.verbID) AS usageCount FROM ${VERB_CONSUMPTION_TABLE} vc JOIN ${VERB_TABLE} v ON vc.verbID = v.id JOIN ${ENDPOINT_TABLE} e ON vc.endpointID = e.id GROUP BY e.endpoint, v.verb`,
+  addUsageWithUserId: `INSERT INTO ${VERB_CONSUMPTION_TABLE} (userID, verbID, endpointID) VALUES (?, ?, ?)`,
+  addUsageWithoutUserId: `INSERT INTO ${VERB_CONSUMPTION_TABLE} (verbID, endpointID) VALUES (?, ?)`,
 };
 
 
@@ -131,6 +136,12 @@ class User {
 }
 
 app.post('/register', async (req, res) => {
+  try {
+    addUsage(VERB.POST, ENDPOINT.REGISTER);
+  } catch (err) {
+    console.error(err);
+  }
+  
   db_admin.query(queries.getUserByEmail, [req.body.email], async (err, result) => {
     if (err) {
       console.error(err);
@@ -159,6 +170,12 @@ app.post('/register', async (req, res) => {
 });
 
 app.get('/getSecurityQuestions', async (req, res) => {
+  try {
+    addUsage(VERB.GET, ENDPOINT.GET_SECURITY_QUESTIONS);
+  } catch (err) {
+    console.error(err);
+  }
+
   db_admin.query(queries.getSecurityQuestions, (err, result) => {
     if (err) {
       console.error(err);
@@ -241,6 +258,22 @@ app.get('/getAllUsers', async (req, res) => {
   }
 });
 
+app.get('/getAllUsages', async (req, res) => {
+  const admin = await User.checkUserRole(req.query.adminId);
+  if (!admin) {
+    res.status(409).send('Must be an admin to access this endpoint');
+  } else {
+    db_admin.query(queries.getAllUsages, (err, result) => {
+      if (err) {
+        console.error(err);
+        res.status(500).send('Internal server error');
+      }
+      const response = {data: JSON.parse(JSON.stringify(result))};
+      res.status(200).send(response);
+    });
+  }
+});
+
 app.get('/getUserSecurityQuestion', async (req, res) => {
   db_admin.query(queries.getUserSecurityQuestion, req.query.email, (err, result) => {
     if (err) {
@@ -287,6 +320,22 @@ app.put('/changePassword', async (req, res) => {
 async function hashPassword(password) {
   const saltRounds = 10;
   return await bcrypt.hash(password, saltRounds);
+}
+
+function addUsage(verbId, endpointId, userId=null) {
+  return new Promise((resolve, reject) => {
+    if (userId) {
+      db_admin.query(queries.addUsageWithUserId, [userId, verbId, endpointId], (err, result) => {
+        if (err) reject(err);
+        resolve();
+      });
+    } else {
+      db_admin.query(queries.addUsageWithoutUserId, [verbId, endpointId], (err, result) => {
+        if (err) reject(err);
+        resolve();
+      });
+    }
+  });
 }
 
 // Start server
