@@ -28,7 +28,11 @@ class User {
         return new Promise((resolve, reject) => {
             db_admin.query(queries.getUserByEmail, [email], (err, result) => {
                 if (err) reject(err);
-                resolve(result[0]);
+                if (result.length > 0) {
+                    resolve(result[0]);
+                } else {
+                    resolve(null);
+                }
             }
             );
         });
@@ -86,8 +90,11 @@ class User {
         return new Promise((resolve, reject) => {
             db_admin.query(queries.getUserInfoByUserId, [id], (err, result) => {
                 if (err) reject(err);
-                console.log(result);
-                resolve(result[0].isAdmin)
+                if (result.length > 0) {
+                    resolve(result[0].isAdmin)
+                } else {
+                    resolve(false);
+                }
             });
         });
     }
