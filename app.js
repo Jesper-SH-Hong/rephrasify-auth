@@ -187,6 +187,12 @@ app.get('/getSecurityQuestions', async (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
+  try {
+    addUsage(VERB.POST, ENDPOINT.LOGIN);
+  } catch (err) {
+    console.error(err);
+  }
+
   const { email, password } = req.body;
   User.authenticate(email, password)
     .then((user) => {
@@ -212,6 +218,12 @@ app.get('/logout', (req, res) => {
 );
 
 app.put('/updateRole', async (req, res) => {
+  try {
+    addUsage(VERB.PUT, ENDPOINT.UPDATE_ROLE, req.body.adminId);
+  } catch (err) {
+    console.error(err);
+  }
+
   const admin = await User.checkUserRole(req.body.adminId);
   if (!admin) {
     res.status(409).send('Must be an admin to access this endpoint');
@@ -228,6 +240,12 @@ app.put('/updateRole', async (req, res) => {
 });
 
 app.delete('/deleteUser', async (req, res) => {
+  try {
+    addUsage(VERB.DELETE, ENDPOINT.DELETE_USER, req.body.adminId);
+  } catch (err) {
+    console.error(err);
+  }
+
   const admin = await User.checkUserRole(req.body.adminId);
   if (!admin) {
     res.status(409).send('Must be an admin to access this endpoint');
@@ -243,6 +261,12 @@ app.delete('/deleteUser', async (req, res) => {
 });
 
 app.get('/getAllUsers', async (req, res) => {
+  try {
+    addUsage(VERB.GET, ENDPOINT.GET_ALL_USERS, req.query.adminId);
+  } catch (err) {
+    console.error(err);
+  }
+
   const admin = await User.checkUserRole(req.query.adminId);
   if (!admin) {
     res.status(409).send('Must be an admin to access this endpoint');
@@ -259,6 +283,12 @@ app.get('/getAllUsers', async (req, res) => {
 });
 
 app.get('/getAllUsages', async (req, res) => {
+  try {
+    addUsage(VERB.GET, ENDPOINT.GET_ALL_USERS, req.query.adminId);
+  } catch (err) {
+    console.error(err);
+  }
+
   const admin = await User.checkUserRole(req.query.adminId);
   if (!admin) {
     res.status(409).send('Must be an admin to access this endpoint');
@@ -275,6 +305,12 @@ app.get('/getAllUsages', async (req, res) => {
 });
 
 app.get('/getUserSecurityQuestion', async (req, res) => {
+  try {
+    addUsage(VERB.GET, ENDPOINT.GET_USER_SECURITY_QUESTIONS);
+  } catch (err) {
+    console.error(err);
+  }
+
   db_admin.query(queries.getUserSecurityQuestion, req.query.email, (err, result) => {
     if (err) {
       console.error(err);
@@ -285,6 +321,12 @@ app.get('/getUserSecurityQuestion', async (req, res) => {
 });
 
 app.post('/answerSecurityQuestion', async (req, res) => {
+  try {
+    addUsage(VERB.POST, ENDPOINT.ANSWER_SECURITY_QUESTION);
+  } catch (err) {
+    console.error(err);
+  }
+
   User.validateSecurityQuestion(req.body.email, req.body.answer)
     .then((user) => {
       if (user) {
@@ -300,6 +342,12 @@ app.post('/answerSecurityQuestion', async (req, res) => {
 });
 
 app.put('/changePassword', async (req, res) => {
+  try {
+    addUsage(VERB.PUT, ENDPOINT.CHANGE_PASSWORD);
+  } catch (err) {
+    console.error(err);
+  }
+  
   const hashedPassword = await hashPassword(req.body.password);
   const values = [hashedPassword, req.body.email];
   db_admin.query(queries.changePassword, values, (err, result) => {
