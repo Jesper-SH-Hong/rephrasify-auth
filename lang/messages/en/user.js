@@ -9,6 +9,7 @@ const MESSAGES = {
   LOGOUT: 'Successfully logged out',
   ROLE_UPDATED: 'Role updated successfully',
   USER_DELETED: 'User deleted successfully',
+  API_COUNT_UPDATED: 'API count updated successfully',
 };
 
 module.exports = MESSAGES;

@@ -275,6 +275,16 @@ app.get("/getUserInfoById", async (req, res) => {
 		});
 });
 
+app.post('/increaseExternalApiCount', async (req, res) => {
+  try {
+    User.addUsage(VERB.POST, ENDPOINT.GRAMMARLY, req.body.userId);
+    res.status(ERROR.SUCCESS).send({ message: MESSAGES.API_COUNT_UPDATED });
+  } catch (err) {
+    console.error(err);
+    res.status(ERROR.INTERNAL_SERVER_ERROR).send({ message: err });
+  }
+});
+
 // Start server
 app.listen(port, () => {
   console.log(`User Authentication service is running on port ${port}`);

@@ -9,6 +9,7 @@ const ENDPOINT = Object.freeze({
     GET_USER_SECURITY_QUESTIONS: 8,
     ANSWER_SECURITY_QUESTION: 9,
     CHANGE_PASSWORD: 10,
+    GRAMMARLY: 11,
 });
 
 module.exports = ENDPOINT;
