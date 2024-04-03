@@ -258,6 +258,23 @@ app.put('/changePassword', async (req, res) => {
   });
 });
 
+app.get("/getUserInfoById", async (req, res) => {
+	User.getUserInfo(req.query.userId)
+		.then((user) => {
+			if (user) {
+				res.status(ERROR.SUCCESS).json(user);
+			} else {
+				res.status(ERROR.NOT_FOUND).send({ message: MESSAGES.USER_NOT_FOUND });
+			}
+		})
+		.catch((err) => {
+			console.error(err);
+			res
+				.status(ERROR.INTERNAL_SERVER_ERROR)
+				.send({ message: MESSAGES.INTERNAL_SERVER_ERROR });
+		});
+});
+
 // Start server
 app.listen(port, () => {
   console.log(`User Authentication service is running on port ${port}`);

@@ -99,6 +99,19 @@ class User {
         });
     }
 
+    static getUserInfo(id) {
+        return new Promise((resolve, reject) => {
+            db_admin.query(query.getUserInfoByUserId, [id], (err, result) => {
+                if (err) reject(err);
+                if (result.length > 0) {
+                    resolve(result[0]);
+                } else {
+                    resolve(null);
+                }
+            });
+        })
+    }
+
     static addUsage(verbId, endpointId, userId = null) {
         return new Promise((resolve, reject) => {
             if (userId) {
